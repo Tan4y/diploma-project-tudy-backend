@@ -29,3 +29,30 @@ export const register = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Вход
+export const login = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // Проверка дали потребителят съществува
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid username or password" });
+    }
+
+    // Проверка на паролата
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid username or password" });
+    }
+
+    // Успешен вход
+    res
+      .status(200)
+      .json({ message: "Login successful", user: { username: user.username } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
