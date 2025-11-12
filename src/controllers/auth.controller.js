@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 // Регистрация
 export const register = async (req, res) => {
@@ -47,10 +48,19 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid username or password" });
     }
 
+    // Генериране на JWT токен
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
     // Успешен вход
-    res
-      .status(200)
-      .json({ message: "Login successful", user: { username: user.username } });
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: { id: user._id, username: user.username },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
