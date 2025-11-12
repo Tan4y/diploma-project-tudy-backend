@@ -36,6 +36,13 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    // Валидация на входа
+    if (!username || !password) {
+      return res
+        .status(400)
+        .json({ message: "Username and password are required" });
+    }
+
     // Проверка дали потребителят съществува
     const user = await User.findOne({ username });
     if (!user) {
