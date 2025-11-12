@@ -1,5 +1,9 @@
 import express from "express";
-import { register, login } from "../controllers/auth.controller.js";
+import {
+  register,
+  login,
+  refreshToken,
+} from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 
@@ -17,6 +21,9 @@ router.post("/register", register);
 
 // POST /api/auth/login with rate limiter
 router.post("/login", loginLimiter, login);
+
+// New refrsh route
+router.post("/refresh", refreshToken);
 
 // Protected route example
 router.get("/profile", verifyToken, (req, res) => {
