@@ -36,11 +36,10 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Валидация на входа
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ message: "Username and password are required" });
+    // Валидация чрез validator
+    const validationError = validateLoginData(username, password);
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
     }
 
     // Проверка дали потребителят съществува
