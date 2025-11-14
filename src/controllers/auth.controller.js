@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { validateLoginData } from "../validators/authValidator.js";
 
 // Регистрация
 export const register = async (req, res) => {
