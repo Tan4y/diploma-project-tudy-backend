@@ -1,12 +1,18 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { validateLoginData } from "../validators/authValidator.js";
+import { validateRegisterData, validateLoginData } from "../validators/authValidator.js";
 
 // Регистрация
 export const register = async (req, res) => {
   try {
     const { username, password } = req.body;
+
+    // Валидация
+    const validationError = validateRegisterData(username, password);
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
+    }
 
     // Проверка дали потребителят вече съществува
     const existingUser = await User.findOne({ username });
