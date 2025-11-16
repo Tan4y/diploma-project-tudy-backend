@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 import bcrypt from "bcrypt";
 
 export const requestPasswordReset = async (req, res) => {
-  const { email } = req.body;
+  const { username } = req.body;
 
   try {
     const user = await User.findOne({ username });
@@ -16,7 +16,6 @@ export const requestPasswordReset = async (req, res) => {
     user.resetTokenExpiry = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    // Send email
     const transporter = nodemailer.createTransport({
       service: "Gmail",
       auth: {
@@ -26,9 +25,11 @@ export const requestPasswordReset = async (req, res) => {
     });
 
     const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+    //console.log("Reset link:", resetLink);
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: email,
+      to: user.email,
       subject: "Password Reset",
       html: `<p>Click this link to reset your password: <a href="${resetLink}">Reset Password</a></p>`,
     });
