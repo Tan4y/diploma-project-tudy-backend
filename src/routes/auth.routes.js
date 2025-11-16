@@ -16,6 +16,79 @@ const loginLimiter = rateLimit({
   message: "Too many login attempts, please try again later.",
 });
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: User authentication
+ */
+
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: myuser
+ *               password:
+ *                 type: string
+ *                 example: mypassword
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: Username already exists
+ */
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login a user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: myuser
+ *               password:
+ *                 type: string
+ *                 example: mypassword
+ *     responses:
+ *       200:
+ *         description: Successful login returns JWT token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       401:
+ *         description: Invalid credentials
+ */
+
 // POST /api/auth/register
 router.post("/register", register);
 
