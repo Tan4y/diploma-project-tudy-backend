@@ -1,15 +1,18 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { validateRegisterData, validateLoginData } from "../validators/authValidator.js";
+import {
+  validateRegisterData,
+  validateLoginData,
+} from "../validators/authValidator.js";
 
 // Регистрация
 export const register = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
 
     // Валидация
-    const validationError = validateRegisterData(username, password);
+    const validationError = validateRegisterData(username, email, password);
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
@@ -20,12 +23,18 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "Username already taken" });
     }
 
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
     // Хеширане на паролата
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Създаване на нов потребител
     const newUser = new User({
       username,
+      email,
       password: hashedPassword,
     });
 

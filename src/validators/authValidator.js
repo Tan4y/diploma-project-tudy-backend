@@ -14,9 +14,13 @@ export const validateLoginData = (username, password) => {
   return null;
 };
 
-export const validateRegisterData = (username, password) => {
+export const validateRegisterData = (username, email, password) => {
   if (!username || username.trim() === "") {
     return "Username is required";
+  }
+
+  if (!email || email.trim() === "") {
+    return "Email is required";
   }
 
   if (!password || password.trim() === "") {
@@ -25,6 +29,11 @@ export const validateRegisterData = (username, password) => {
 
   if (password.length < 8) {
     return "Password must be at least 8 characters long";
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return "Invalid email address";
   }
 
   const usernameRegex = /^[a-zA-Z0-9_]+$/;
