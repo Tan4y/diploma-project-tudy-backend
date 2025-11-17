@@ -1,4 +1,6 @@
 import express from "express";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger.js";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
@@ -11,6 +13,8 @@ dotenv.config();
 connectDB();
 
 const app = express();
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
