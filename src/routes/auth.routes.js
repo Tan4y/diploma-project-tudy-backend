@@ -37,11 +37,15 @@ const loginLimiter = rateLimit({
  *             type: object
  *             required:
  *               - username
+ *               - email
  *               - password
  *             properties:
  *               username:
  *                 type: string
  *                 example: myuser
+ *               email:
+ *                 type: string
+ *                 example: myemail@gmail.com
  *               password:
  *                 type: string
  *                 example: mypassword

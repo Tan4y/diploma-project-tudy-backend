@@ -26,9 +26,9 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               email:
+ *               username:
  *                 type: string
- *                 example: user@example.com
+ *                 example: myuser
  *     responses:
  *       200:
  *         description: Email sent if user exists
