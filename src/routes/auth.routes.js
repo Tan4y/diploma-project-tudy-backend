@@ -8,6 +8,7 @@ import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { verifyEmail } from "../controllers/auth.controller.js";
 import { getAllUsers } from "../controllers/auth.controller.js";
+import { deleteUser } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -117,11 +118,6 @@ router.get("/verify-email", verifyEmail);
  *       401:
  *         description: Invalid credentials
  */
-
-// POST /api/auth/register
-router.post("/register", register);
-
-// POST /api/auth/login with rate limiter
 router.post("/login", loginLimiter, login);
 
 /**
@@ -156,7 +152,34 @@ router.post("/login", loginLimiter, login);
  *       401:
  *         description: Unauthorized
  */
-router.get("/users", verifyToken, getAllUsers);
+router.get("/users", getAllUsers);
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete("/users", deleteUser);
 
 // New refrsh route
 router.post("/refresh", refreshToken);
