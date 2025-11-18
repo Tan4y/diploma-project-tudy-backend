@@ -97,6 +97,16 @@ export const login = async (req, res) => {
   }
 };
 
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}, "-password"); // exclude passwords
+    res.status(200).json({ users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const refreshToken = (req, res) => {
   const { token } = req.body;
   if (!token)
