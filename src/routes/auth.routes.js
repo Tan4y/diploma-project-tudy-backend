@@ -6,6 +6,7 @@ import {
 } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
+import { verifyEmail } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -55,6 +56,7 @@ const loginLimiter = rateLimit({
  *       400:
  *         description: Username already exists
  */
+router.post("/register", register);
 
 /**
  * @swagger
@@ -92,12 +94,29 @@ const loginLimiter = rateLimit({
  *       401:
  *         description: Invalid credentials
  */
-
-// POST /api/auth/register
-router.post("/register", register);
-
-// POST /api/auth/login with rate limiter
 router.post("/login", loginLimiter, login);
+
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   get:
+ *     summary: Verify a user's email address
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Verification token sent by email
+ *     responses:
+ *       302:
+ *         description: Redirect to login on success
+ *       400:
+ *         description: Invalid or expired token
+ */
+
+router.get("/verify-email", verifyEmail);
 
 // New refrsh route
 router.post("/refresh", refreshToken);
