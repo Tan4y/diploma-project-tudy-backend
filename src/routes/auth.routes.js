@@ -6,6 +6,9 @@ import {
 } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
+import { verifyEmail } from "../controllers/auth.controller.js";
+import { getAllUsers } from "../controllers/auth.controller.js";
+import { deleteUser } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -55,6 +58,29 @@ const loginLimiter = rateLimit({
  *       400:
  *         description: Username already exists
  */
+router.post("/register", register);
+
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   get:
+ *     summary: Verify a user's email address
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Verification token sent by email
+ *     responses:
+ *       302:
+ *         description: Redirect to login on success
+ *       400:
+ *         description: Invalid or expired token
+ */
+
+router.get("/verify-email", verifyEmail);
 
 /**
  * @swagger
@@ -92,12 +118,68 @@ const loginLimiter = rateLimit({
  *       401:
  *         description: Invalid credentials
  */
-
-// POST /api/auth/register
-router.post("/register", register);
-
-// POST /api/auth/login with rate limiter
 router.post("/login", loginLimiter, login);
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       isVerified:
+ *                         type: boolean
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users", getAllUsers);
+
+/**
+ * @swagger
+ * /api/auth/users/{id}:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       403:
+ *         description: Forbidden, cannot delete another user's account
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete("/users", deleteUser);
 
 // New refrsh route
 router.post("/refresh", refreshToken);
