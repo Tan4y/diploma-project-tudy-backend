@@ -7,6 +7,7 @@ import {
 import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { verifyEmail } from "../controllers/auth.controller.js";
+import { getAllUsers } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -57,6 +58,28 @@ const loginLimiter = rateLimit({
  *         description: Username already exists
  */
 router.post("/register", register);
+
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   get:
+ *     summary: Verify a user's email address
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Verification token sent by email
+ *     responses:
+ *       302:
+ *         description: Redirect to login on success
+ *       400:
+ *         description: Invalid or expired token
+ */
+
+router.get("/verify-email", verifyEmail);
 
 /**
  * @swagger
@@ -117,6 +140,40 @@ router.post("/login", loginLimiter, login);
  */
 
 router.get("/verify-email", verifyEmail);
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       isVerified:
+ *                         type: boolean
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users", verifyToken, getAllUsers);
 
 // New refrsh route
 router.post("/refresh", refreshToken);
