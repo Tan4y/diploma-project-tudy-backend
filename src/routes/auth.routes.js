@@ -8,7 +8,6 @@ import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { verifyEmail } from "../controllers/auth.controller.js";
 import { getAllUsers } from "../controllers/auth.controller.js";
-import { deleteUser } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -180,6 +179,40 @@ router.get("/users", getAllUsers);
  *         description: Unauthorized
  */
 router.delete("/users", deleteUser);
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       isVerified:
+ *                         type: boolean
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users", verifyToken, getAllUsers);
 
 // New refrsh route
 router.post("/refresh", refreshToken);

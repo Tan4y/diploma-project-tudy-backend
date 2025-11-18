@@ -132,23 +132,10 @@ export const login = async (req, res) => {
   }
 };
 
-export const deleteUser = async (req, res) => {
+export const getAllUsers = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    if (req.user.id !== id) {
-      return res
-        .status(403)
-        .json({ message: "You can only delete your own account" });
-    }
-
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    await User.findByIdAndDelete(id);
-    res.status(200).json({ message: "User deleted successfully" });
+    const users = await User.find({}, "-password"); // exclude passwords
+    res.status(200).json({ users });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
