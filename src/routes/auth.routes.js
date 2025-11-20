@@ -8,6 +8,7 @@ import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { verifyEmail } from "../controllers/auth.controller.js";
 import { getAllUsers } from "../controllers/auth.controller.js";
+import { deleteUser } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -121,6 +122,25 @@ router.post("/login", loginLimiter, login);
 
 /**
  * @swagger
+ * /api/auth/verify-email:
+ *   get:
+ *     summary: Verify a user's email address
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Verification token sent by email
+ *     responses:
+ *       302:
+ *         description: Redirect to login on success
+ *       400:
+ *         description: Invalid or expired token
+ */
+
+router.get("/verify-email", verifyEmail);
  * /api/auth/users:
  *   get:
  *     summary: Get all users
@@ -212,7 +232,34 @@ router.delete("/users", deleteUser);
  *       401:
  *         description: Unauthorized
  */
-router.get("/users", verifyToken, getAllUsers);
+router.get("/users", getAllUsers);
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete("/users", deleteUser);
 
 // New refrsh route
 router.post("/refresh", refreshToken);
