@@ -29,11 +29,10 @@ export const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const tempTokenTime = "5m";
     const tempToken = jwt.sign(
       { username, email, password: hashedPassword },
       process.env.TEMP_JWT_SECRET,
-      { expiresIn: tempTokenTime }
+      { expiresIn: TEMP_TOKEN_EXPIRES_IN }
     );
 
     // Send verification email
@@ -100,22 +99,17 @@ export const login = async (req, res) => {
         .json({ message: "Please verify your email before logging in" });
     }
 
-    // Access токен
-    const jwtExpiresTime = "15m";
     const accessToken = jwt.sign(
       { id: user._id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || jwtExpiresTime }
+      { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
-    // Refresh токен
-    const refreshTokenExpiresTime = "7d";
     const refreshToken = jwt.sign(
       { id: user._id },
       process.env.REFRESH_TOKEN_SECRET,
       {
-        expiresIn:
-          process.env.REFRESH_TOKEN_EXPIRES_IN || refreshTokenExpiresTime,
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
       }
     );
 
@@ -158,7 +152,7 @@ export const refreshToken = (req, res) => {
     const newAccessToken = jwt.sign(
       { id: decoded.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "15m" }
+      { expiresIn: process.env.JWT_EXPIRES_IN }
     );
     res.json({ accessToken: newAccessToken });
   } catch (error) {
