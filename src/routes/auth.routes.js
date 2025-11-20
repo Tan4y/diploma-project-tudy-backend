@@ -141,6 +141,64 @@ router.post("/login", loginLimiter, login);
  */
 
 router.get("/verify-email", verifyEmail);
+ * /api/auth/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       isVerified:
+ *                         type: boolean
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users", getAllUsers);
+
+/**
+ * @swagger
+ * /api/auth/users/{id}:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       403:
+ *         description: Forbidden, cannot delete another user's account
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete("/users", deleteUser);
 
 /**
  * @swagger

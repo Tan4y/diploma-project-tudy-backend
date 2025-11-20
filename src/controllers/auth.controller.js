@@ -198,3 +198,13 @@ export const verifyEmail = async (req, res) => {
     res.status(400).json({ message: "Invalid or expired verification link" });
   }
 };
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}, "-password"); // exclude passwords
+    res.status(200).json({ users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
