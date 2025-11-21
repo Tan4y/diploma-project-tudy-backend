@@ -5,7 +5,7 @@ const StudySessionSchema = new mongoose.Schema({
   end: { type: Date, required: true },
   pagesFrom: { type: Number, required: true },
   pagesTo: { type: Number, required: true },
-  note: { type: String }, // example: "Initial study", "Review #1"
+  note: { type: String },
 });
 
 const StudyPlanSchema = new mongoose.Schema({

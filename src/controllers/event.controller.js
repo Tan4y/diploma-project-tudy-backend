@@ -81,13 +81,7 @@ export const updateEvent = async (req, res) => {
     if (event.type === "study" && event.totalPages > 0) {
       // Изтриваме стария план и създаваме нов
       await StudyPlan.deleteMany({ eventId: event._id });
-      const studyPlanData = await generateAdaptiveStudyPlan({
-        userId: req.user.id,
-        eventId: event._id,
-        totalPages: event.totalPages,
-        eventDate: event.date,
-        userSettings: req.user.settings,
-      });
+      const studyPlanData = await generateAdaptiveStudyPlan(event, req.user.id);
       if (studyPlanData.sessions && studyPlanData.sessions.length > 0) {
         await StudyPlan.create(studyPlanData);
       }
@@ -95,7 +89,7 @@ export const updateEvent = async (req, res) => {
 
     res.json({ message: "Event updated successfully", event });
   } catch (error) {
-    console.error(error);
+    console.error("UPDATE EVENT ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

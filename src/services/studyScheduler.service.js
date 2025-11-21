@@ -154,9 +154,8 @@ function splitSlotToSessions(slot, minMinutes, maxMinutes) {
  * Връща: sessions [{start, end, pagesFrom, pagesTo, note}]
  */
 export async function generateAdaptiveStudyPlan(event, userId) {
-  // event.startDate = дата на изпита/събитието (последен ден да се учи)
   const now = new Date();
-  const eventDate = new Date(event.startDate);
+  const eventDate = new Date(event.date);
 
   // safety: ако event е в миналото -> празно
   if (eventDate <= now || !event.totalPages) {
@@ -330,7 +329,7 @@ export async function generateAdaptiveStudyPlan(event, userId) {
   return {
     eventId: event._id,
     userId,
-    eventDate: event.startDate,
+    eventDate: event.date,
     sessions: resultSessions.map((s) => ({
       start: s.start,
       end: s.end,

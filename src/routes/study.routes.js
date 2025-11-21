@@ -4,6 +4,7 @@ import {
   createStudyPlanForEvent,
   previewStudyPlan,
 } from "../controllers/study.controller.js";
+import { verifyToken } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -34,7 +35,7 @@ const router = express.Router();
  *       500:
  *         description: Server Error
  */
-router.post("/preview", previewStudyPlan);
+router.post("/preview", verifyToken, previewStudyPlan);
 
 /**
  * @swagger
@@ -44,7 +45,7 @@ router.post("/preview", previewStudyPlan);
  *     tags:
  *       - Study
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -67,6 +68,6 @@ router.post("/preview", previewStudyPlan);
  *       500:
  *         description: Server Error
  */
-router.post("/create", createStudyPlanForEvent);
+router.post("/create", verifyToken, createStudyPlanForEvent);
 
 export default router;

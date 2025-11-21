@@ -27,7 +27,7 @@ export const createStudyPlanForEvent = async (req, res) => {
     const saved = await StudyPlan.create({
       userId: userId,
       eventId: event._id,
-      eventDate: event.startDate,
+      eventDate: event.date,
       sessions: plan.sessions,
     });
 
