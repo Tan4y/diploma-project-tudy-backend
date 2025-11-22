@@ -3,6 +3,7 @@ import express from "express";
 import {
   createStudyPlanForEvent,
   previewStudyPlan,
+  getAllStudyPlans,
 } from "../controllers/study.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 
@@ -69,5 +70,56 @@ router.post("/preview", verifyToken, previewStudyPlan);
  *         description: Server Error
  */
 router.post("/create", verifyToken, createStudyPlanForEvent);
+
+/**
+ * @swagger
+ * /api/study/study-plans:
+ *   get:
+ *     tags:
+ *       - Study Plans
+ *     summary: Get all study plans for the authenticated user
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of study plans
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   userId:
+ *                     type: string
+ *                   eventId:
+ *                     type: string
+ *                   sessions:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         sessionNumber:
+ *                           type: number
+ *                         startTime:
+ *                           type: string
+ *                           format: date-time
+ *                         endTime:
+ *                           type: string
+ *                           format: date-time
+ *                         pages:
+ *                           type: number
+ *                   eventDate:
+ *                     type: string
+ *                     format: date
+ *       401:
+ *         description: Missing or invalid token
+ *       500:
+ *         description: Server error
+ */
+
+router.get("/study-plans", verifyToken, getAllStudyPlans);
 
 export default router;

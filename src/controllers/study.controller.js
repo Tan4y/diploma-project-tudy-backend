@@ -60,3 +60,14 @@ export const previewStudyPlan = async (req, res) => {
       .json({ message: "Error generating preview", detail: err.message });
   }
 };
+
+export const getAllStudyPlans = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const studyPlans = await StudyPlan.find({ userId }).sort({ eventDate: 1 });
+    res.json(studyPlans);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
