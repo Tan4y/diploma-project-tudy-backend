@@ -45,7 +45,21 @@ router.get("/", verifyToken, getEvents);
  *                 type: string
  *               date:
  *                 type: string
+ *                 format: date
+ *               startTime:
+ *                 type: string
  *                 format: date-time
+ *               endTime:
+ *                 type: string
+ *                 format: date-time
+ *               type:
+ *                 type: string
+ *                 enum: [study, personal]
+ *               pages:
+ *                 type: number
+ *              # difficulty:
+ *               #  type: string
+ *               #  enum: [low, medium, high]
  *     responses:
  *       201:
  *         description: Event created successfully
@@ -80,7 +94,18 @@ router.post("/", verifyToken, validateEvent, createEvent);
  *                 type: string
  *               date:
  *                 type: string
+ *                 format: date
+ *               startTime:
+ *                 type: string
  *                 format: date-time
+ *               endTime:
+ *                 type: string
+ *                 format: date-time
+ *               type:
+ *                 type: string
+ *                 enum: [study, personal]
+ *               pages:
+ *                 type: number
  *     responses:
  *       200:
  *         description: Event updated successfully
