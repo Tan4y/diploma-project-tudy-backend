@@ -8,6 +8,8 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import eventRoutes from "./routes/event.routes.js";
 import resetRoutes from "./routes/reset.routes.js";
+import studyRoutes from "./routes/study.routes.js";
+import sessionRoutes from "./routes/session.routes.js";
 
 dotenv.config();
 connectDB();
@@ -22,6 +24,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/password", resetRoutes);
+app.use("/api/study", studyRoutes);
+app.use("/api/sessions", sessionRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend is running");

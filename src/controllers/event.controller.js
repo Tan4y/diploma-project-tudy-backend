@@ -1,24 +1,57 @@
 import Event from "../models/Event.js";
+import StudyPlan from "../models/StudyPlan.js";
+import { generateAdaptiveStudyPlan } from "../services/studyScheduler.service.js";
 
 // Създаване на събитие
 export const createEvent = async (req, res) => {
   try {
-    const { title, description, date } = req.body;
+    const { title, description, date, startTime, endTime, type, pages } =
+      req.body;
     const userId = req.user.id; // от JWT middleware
 
     const event = new Event({
       title,
       description,
       date,
+      startTime,
+      endTime,
+      type, // "study" или "personal"
+      totalPages: pages, // само за учебни събития
       user: userId,
     });
 
     await event.save();
 
+    // Ако събитието е учебно, генерираме автоматичен план
+    if (type === "study" && pages > 0) {
+      let studyPlanData = await generateAdaptiveStudyPlan({
+        userId,
+        eventId: event._id,
+        pages,
+        eventDate: date,
+        userSettings: req.user.settings, // start/end time, preferences
+      });
+
+      // Make sure required fields exist
+      const safeStudyPlanData = {
+        userId,
+        eventId: event._id,
+        eventDate: date,
+        sessions: Array.isArray(studyPlanData.sessions)
+          ? studyPlanData.sessions
+          : [],
+      };
+
+      // Only create StudyPlan if sessions exist
+      if (safeStudyPlanData.sessions.length > 0) {
+        await StudyPlan.create(safeStudyPlanData);
+      }
+    }
+
     res.status(201).json({ message: "Event created successfully", event });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("CreateEvent error:", error);
+    res.status(500).json({ message: "Server error", details: error.message });
   }
 };
 
@@ -29,20 +62,34 @@ export const updateEvent = async (req, res) => {
 
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    // Check ownership
+    // Проверка за собственост
     if (event.user.toString() !== req.user.id)
       return res.status(403).json({ message: "Unauthorized" });
 
-    // Update fields
+    // Обновяване на полетата
     event.title = req.body.title || event.title;
-    event.description = req.body.description || event.description;
+    event.description = req.body.description ?? event.description;
     event.date = req.body.date || event.date;
+    event.type = req.body.type || event.type;
+    event.totalPages = req.body.pages ?? event.totalPages;
+    event.startTime = req.body.startTime || event.startTime;
+    event.endTime = req.body.endTime || event.endTime;
 
     await event.save();
 
+    // Ако е учебно събитие, обновяваме StudyPlan
+    if (event.type === "study" && event.totalPages > 0) {
+      // Изтриваме стария план и създаваме нов
+      await StudyPlan.deleteMany({ eventId: event._id });
+      const studyPlanData = await generateAdaptiveStudyPlan(event, req.user.id);
+      if (studyPlanData.sessions && studyPlanData.sessions.length > 0) {
+        await StudyPlan.create(studyPlanData);
+      }
+    }
+
     res.json({ message: "Event updated successfully", event });
   } catch (error) {
-    console.error(error);
+    console.error("UPDATE EVENT ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -71,6 +118,12 @@ export const deleteEvent = async (req, res) => {
     }
 
     await event.deleteOne();
+
+    // Ако е учебно, изтриваме свързания план
+    if (event.type === "study") {
+      await StudyPlan.deleteMany({ eventId: event._id });
+    }
+
     res.json({ message: "Event deleted successfully" });
   } catch (error) {
     console.error(error);
