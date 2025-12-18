@@ -20,10 +20,11 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
-app.use("/api/password", resetRoutes);
+app.use("/api/auth", resetRoutes);
 app.use("/api/study", studyRoutes);
 app.use("/api/sessions", sessionRoutes);
 

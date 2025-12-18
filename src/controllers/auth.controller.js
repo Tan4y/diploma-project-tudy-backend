@@ -32,7 +32,7 @@ export const register = async (req, res) => {
     const tempToken = jwt.sign(
       { username, email, password: hashedPassword },
       process.env.TEMP_JWT_SECRET,
-      { expiresIn: TEMP_TOKEN_EXPIRES_IN }
+      { expiresIn: process.env.TEMP_TOKEN_EXPIRES_IN }
     );
 
     // Send verification email
@@ -44,7 +44,7 @@ export const register = async (req, res) => {
       },
     });
 
-    const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${tempToken}`;
+    const verificationLink = `${process.env.CLIENT_URL}/api/auth/verify-email?token=${tempToken}`;
 
     console.log("Verification link:", verificationLink);
 
@@ -177,18 +177,26 @@ export const verifyEmail = async (req, res) => {
 
     await newUser.save();
 
-    if (process.env.NODE_ENV !== "production") {
-      // Return JSON for Swagger / testing
-      return res.json({
-        message: "Email verified successfully. You can now log in.",
-      });
-    }
-
-    // Redirect to login page or send JSON
-    res.redirect(`${process.env.CLIENT_URL}/login?verified=true`);
-    // OR: res.json({ message: "Email verified successfully. You can now log in." });
+    return res.status(200).json({
+      message: "Email verified successfully. You can now log in.",
+    });
   } catch (err) {
     console.error(err);
+
+    if (err.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid verification link" });
+    }
+
+    if (err.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Verification link has expired" });
+    }
+
+    if (err.code === 11000) {
+      return res
+        .status(400)
+        .json({ message: "This account has already been verified" });
+    }
+
     res.status(400).json({ message: "Invalid or expired verification link" });
   }
 };

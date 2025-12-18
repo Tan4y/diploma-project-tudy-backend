@@ -2,6 +2,7 @@ import express from "express";
 import {
   requestPasswordReset,
   resetPassword,
+  verifyResetToken,
 } from "../controllers/resetPassword.controller.js";
 
 const router = express.Router();
@@ -15,7 +16,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/password/request-reset:
+ * /api/auth/request-reset:
  *   post:
  *     summary: Request password reset email
  *     tags: [Password Reset]
@@ -39,7 +40,27 @@ router.post("/request-reset", requestPasswordReset);
 
 /**
  * @swagger
- * /api/password/reset-password:
+ * /api/auth/verify-reset:
+ *   get:
+ *     summary: Verify reset token validity
+ *     tags: [Password Reset]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.get("/reset-password", verifyResetToken);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
  *   post:
  *     summary: Reset password using token sent by email
  *     tags: [Password Reset]
