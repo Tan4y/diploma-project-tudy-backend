@@ -5,8 +5,17 @@ import { generateAdaptiveStudyPlan } from "../services/studyScheduler.service.js
 // Създаване на събитие
 export const createEvent = async (req, res) => {
   try {
-    const { title, description, date, startTime, endTime, type, pages } =
-      req.body;
+    const {
+      title,
+      description,
+      date,
+      startTime,
+      endTime,
+      type,
+      category,
+      subject,
+      pages,
+    } = req.body;
     const userId = req.user.id; // от JWT middleware
 
     const event = new Event({
@@ -16,6 +25,8 @@ export const createEvent = async (req, res) => {
       startTime,
       endTime,
       type, // "study" или "personal"
+      category: type === "study" ? category : undefined,
+      subject: type === "study" ? subject : undefined,
       totalPages: pages, // само за учебни събития
       user: userId,
     });
@@ -74,6 +85,14 @@ export const updateEvent = async (req, res) => {
     event.totalPages = req.body.pages ?? event.totalPages;
     event.startTime = req.body.startTime || event.startTime;
     event.endTime = req.body.endTime || event.endTime;
+
+    if (event.type === "study") {
+      event.category = req.body.category || event.category;
+      event.subject = req.body.subject || event.subject;
+    } else {
+      event.category = undefined;
+      event.subject = undefined;
+    }
 
     await event.save();
 
