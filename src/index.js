@@ -10,6 +10,7 @@ import eventRoutes from "./routes/event.routes.js";
 import resetRoutes from "./routes/reset.routes.js";
 import studyRoutes from "./routes/study.routes.js";
 import sessionRoutes from "./routes/session.routes.js";
+import typeSubjectRoutes from "./routes/typeSubject.routes.js";
 
 dotenv.config();
 connectDB();
@@ -27,6 +28,7 @@ app.use("/api/events", eventRoutes);
 app.use("/api/auth", resetRoutes);
 app.use("/api/study", studyRoutes);
 app.use("/api/sessions", sessionRoutes);
+app.use("/api/type-subject", typeSubjectRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend is running");

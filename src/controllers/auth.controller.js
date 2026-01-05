@@ -7,6 +7,7 @@ import {
   validateRegisterData,
   validateLoginData,
 } from "../validators/authValidator.js";
+import { createDefaultItemsForUser } from "./typeSubject.controller.js";
 
 export const register = async (req, res) => {
   try {
@@ -176,6 +177,8 @@ export const verifyEmail = async (req, res) => {
     });
 
     await newUser.save();
+
+    await createDefaultItemsForUser(newUser._id);
 
     return res.status(200).json({
       message: "Email verified successfully. You can now log in.",
