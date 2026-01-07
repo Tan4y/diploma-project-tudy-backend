@@ -115,10 +115,17 @@ export const login = async (req, res) => {
     );
 
     // Успешен вход
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth/refresh",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.status(200).json({
       message: "Login successful",
       accessToken,
-      refreshToken,
       user: { id: user._id, username: user.username },
     });
   } catch (error) {
@@ -144,7 +151,8 @@ export const deleteUser = async (req, res) => {
 };
 
 export const refreshToken = (req, res) => {
-  const { token } = req.body;
+  const token = req.cookies.refreshToken;
+
   if (!token)
     return res.status(401).json({ message: "No refresh token provided" });
 
