@@ -101,3 +101,39 @@ export const addTypeSubject = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const deleteTypeSubject = async (req, res) => {
+  try {
+    const { userId, id } = req.params;
+
+    const item = await TypeSubject.findOne({ _id: id, userId });
+    if (!item) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    if (item.type === "subject") {
+      const upcomingCount = await getUpcomingTudiesCount(userId, item.name);
+      if (upcomingCount > 0) {
+        return res.status(400).json({
+          error: "Cannot delete subject with upcoming studies",
+        });
+      }
+    } else if (item.type === "type") {
+      const upcomingCount = await getUpcomingTudiesCountByCategory(
+        userId,
+        item.name
+      );
+      if (upcomingCount > 0) {
+        return res.status(400).json({
+          error: "Cannot delete type with upcoming studies",
+        });
+      }
+    }
+
+    await TypeSubject.deleteOne({ _id: id, userId });
+
+    res.json({ message: "Item deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
