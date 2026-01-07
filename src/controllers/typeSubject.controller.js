@@ -1,4 +1,6 @@
 import TypeSubject from "../models/TypeSubject.js";
+import { getUpcomingTudiesCount } from "../utils/tudyHelpers.js";
+import { getUpcomingTudiesCountByCategory } from "../utils/tudyHelpers.js";
 
 // Default types and subjects
 const defaultItems = [
@@ -39,7 +41,28 @@ export const getTypeSubjects = async (req, res) => {
       items = await TypeSubject.find(query);
     }
 
-    res.json(items);
+    const itemsWithCounts = await Promise.all(
+      items.map(async (item) => {
+        let upcomingCount = 0;
+        if (item.type === "subject") {
+          upcomingCount = await getUpcomingTudiesCount(
+            req.params.userId,
+            item.name
+          );
+        } else if (item.type === "type") {
+          upcomingCount = await getUpcomingTudiesCountByCategory(
+            req.params.userId,
+            item.name
+          );
+        }
+        return {
+          ...item.toObject(),
+          tudies: upcomingCount,
+        };
+      })
+    );
+
+    res.json(itemsWithCounts);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
