@@ -7,6 +7,7 @@ import {
   validateRegisterData,
   validateLoginData,
 } from "../validators/authValidator.js";
+import { createDefaultItemsForUser } from "./typeSubject.controller.js";
 
 export const register = async (req, res) => {
   try {
@@ -114,6 +115,14 @@ export const login = async (req, res) => {
     );
 
     // Успешен вход
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth/refresh",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.status(200).json({
       message: "Login successful",
       accessToken,
@@ -143,18 +152,40 @@ export const deleteUser = async (req, res) => {
 };
 
 export const refreshToken = (req, res) => {
-  const { token } = req.body;
-  if (!token)
+  // Try to get token from body first (for mobile clients), then from cookies (for web clients)
+  let token =
+    req.body?.token || req.body?.refreshToken || req.cookies?.refreshToken;
+
+  if (!token) {
     return res.status(401).json({ message: "No refresh token provided" });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
     const newAccessToken = jwt.sign(
       { id: decoded.id },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-    res.json({ accessToken: newAccessToken });
+
+    const newRefreshToken = jwt.sign(
+      { id: decoded.id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN }
+    );
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
   } catch (error) {
     res.status(403).json({ message: "Invalid or expired refresh token" });
   }
@@ -176,6 +207,8 @@ export const verifyEmail = async (req, res) => {
     });
 
     await newUser.save();
+
+    await createDefaultItemsForUser(newUser._id);
 
     return res.status(200).json({
       message: "Email verified successfully. You can now log in.",
