@@ -126,20 +126,15 @@ export const login = async (req, res) => {
   }
 };
 export const deleteUser = async (req, res) => {
-  try {
-    const { id } = req.query;
+  const { id } = req.params;
 
-    if (!id) return res.status(400).json({ message: "User ID is required" });
+  if (!id) return res.status(400).json({ message: "User ID is required" });
 
-    const user = await User.findById(id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-    await User.findByIdAndDelete(id);
-    res.status(200).json({ message: "User deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  await User.findByIdAndDelete(id);
+  res.status(200).json({ message: "User deleted successfully" });
 };
 
 export const refreshToken = (req, res) => {
@@ -205,6 +200,87 @@ export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, "-password"); // exclude passwords
     res.status(200).json({ users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /api/users/:id
+export const getUserById = async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) return res.status(400).json({ message: "User ID is required" });
+
+  try {
+    const user = await User.findById(id, "-password"); // exclude password
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const logout = (req, res) => {
+  try {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth/refresh",
+    });
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateUsername = async (req, res) => {
+  const { userId, newUsername } = req.query;
+
+  if (!userId || !newUsername) {
+    return res.status(400).json({ message: "Missing userId or newUsername" });
+  }
+
+  // Validate username using the existing regex
+  const usernameError = (() => {
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!newUsername || newUsername.trim() === "")
+      return "Username is required";
+    if (!usernameRegex.test(newUsername))
+      return "Username can only contain letters, numbers, and underscores";
+    return null;
+  })();
+
+  if (usernameError) return res.status(400).json({ message: usernameError });
+
+  try {
+    const existing = await User.findOne({
+      username: newUsername,
+      _id: { $ne: userId },
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { username: newUsername },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Username updated", username: updatedUser.username });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

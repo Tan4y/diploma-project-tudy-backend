@@ -2,13 +2,16 @@ import express from "express";
 import {
   register,
   login,
+  getUserById,
   refreshToken,
+  updateUsername,
 } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { verifyEmail } from "../controllers/auth.controller.js";
 import { getAllUsers } from "../controllers/auth.controller.js";
 import { deleteUser } from "../controllers/auth.controller.js";
+import { logout } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -18,6 +21,10 @@ const loginLimiter = rateLimit({
   max: 5, // max 5 attempts per window
   message: "Too many login attempts, please try again later.",
 });
+
+router.post("/logout", logout);
+
+router.patch("/update-username", updateUsername);
 
 /**
  * @swagger
@@ -154,6 +161,16 @@ router.post("/login", loginLimiter, login);
  */
 router.get("/users", getAllUsers);
 
+// New refrsh route
+router.post("/refresh", refreshToken);
+
+// Protected route example
+router.get("/profile", verifyToken, (req, res) => {
+  res.json({ message: `Welcome, ${req.user.username}!`, user: req.user });
+});
+
+router.get("/:id", getUserById);
+
 /**
  * @swagger
  * /api/auth/users:
@@ -179,14 +196,6 @@ router.get("/users", getAllUsers);
  *       401:
  *         description: Unauthorized
  */
-router.delete("/users", deleteUser);
-
-// New refrsh route
-router.post("/refresh", refreshToken);
-
-// Protected route example
-router.get("/profile", verifyToken, (req, res) => {
-  res.json({ message: `Welcome, ${req.user.username}!`, user: req.user });
-});
+router.delete("/:id", deleteUser);
 
 export default router;
