@@ -4,18 +4,22 @@ import { getUpcomingTudiesCountByCategory } from "../utils/tudyHelpers.js";
 
 // Default types and subjects
 const defaultItems = [
-  { name: "Assignment", iconRes: 2130968643, type: "type" },
-  { name: "Exam", iconRes: 2130968642, type: "type" },
-  { name: "Biology", iconRes: 2130968619, type: "subject" },
-  { name: "Chemistry", iconRes: 2130968620, type: "subject" },
-  { name: "Computer Science", iconRes: 2130968621, type: "subject" },
-  { name: "English", iconRes: 2130968624, type: "subject" },
-  { name: "Geography", iconRes: 2130968627, type: "subject" },
-  { name: "History", iconRes: 2130968629, type: "subject" },
-  { name: "Literature", iconRes: 2130968633, type: "subject" },
-  { name: "Mathematics", iconRes: 2130968634, type: "subject" },
-  { name: "Physics", iconRes: 2130968636, type: "subject" },
-  { name: "Sport", iconRes: 2130968639, type: "subject" },
+  { name: "Assignment", iconName: "type_homework", type: "type" },
+  { name: "Exam", iconName: "type_exam", type: "type" },
+  { name: "Biology", iconName: "subject_biology", type: "subject" },
+  { name: "Chemistry", iconName: "subject_chemistry", type: "subject" },
+  {
+    name: "Computer Science",
+    iconName: "subject_computer_science",
+    type: "subject",
+  },
+  { name: "English", iconName: "subject_english", type: "subject" },
+  { name: "Geography", iconName: "subject_geography", type: "subject" },
+  { name: "History", iconName: "subject_history", type: "subject" },
+  { name: "Literature", iconName: "subject_literature", type: "subject" },
+  { name: "Mathematics", iconName: "subject_mathematics", type: "subject" },
+  { name: "Physics", iconName: "subject_physics", type: "subject" },
+  { name: "Sport", iconName: "subject_sport", type: "subject" },
 ];
 
 // Function to create defaults for a new user
@@ -71,7 +75,7 @@ export const getTypeSubjects = async (req, res) => {
 // POST add new type or subject
 export const addTypeSubject = async (req, res) => {
   try {
-    const { name, iconRes, userId, type } = req.body;
+    const { name, iconName, userId, type } = req.body;
 
     if (name.length > 16) {
       return res.status(400).json({
@@ -90,7 +94,7 @@ export const addTypeSubject = async (req, res) => {
 
     const newTypeSubject = new TypeSubject({
       name: name.trim(),
-      iconRes,
+      iconName,
       userId,
       type,
     });

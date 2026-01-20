@@ -19,6 +19,22 @@ export const createEvent = async (req, res) => {
     } = req.body;
     const userId = req.user.id; // от JWT middleware
 
+    const existingEvent = await Event.findOne({
+      user: userId,
+      title: title.trim(),
+      date: date,
+      type: type,
+      subject: type === "study" ? subject : undefined,
+      category: type === "study" ? category : undefined,
+    });
+
+    if (existingEvent) {
+      return res.status(400).json({
+        message: "Event with this title already exists on this date",
+        event: existingEvent,
+      });
+    }
+
     const event = new Event({
       title,
       description,
@@ -36,27 +52,29 @@ export const createEvent = async (req, res) => {
 
     // Ако събитието е учебно, генерираме автоматичен план
     if (type === "study" && pages > 0) {
-      let studyPlanData = await generateAdaptiveStudyPlan({
-        userId,
-        eventId: event._id,
-        pages,
-        eventDate: date,
-        userSettings: req.user.settings, // start/end time, preferences
-      });
+      const studyPlanData = await generateAdaptiveStudyPlan(event, userId);
 
-      // Make sure required fields exist
-      const safeStudyPlanData = {
-        userId,
-        eventId: event._id,
-        eventDate: date,
-        sessions: Array.isArray(studyPlanData.sessions)
-          ? studyPlanData.sessions
-          : [],
-      };
+      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
+        start: s.start,
+        end: s.end,
+        pagesFrom: s.pagesFrom,
+        pagesTo: s.pagesTo,
+        note: s.note || "Initial study",
+      }));
 
-      // Only create StudyPlan if sessions exist
-      if (safeStudyPlanData.sessions.length > 0) {
-        await StudyPlan.create(safeStudyPlanData);
+      if (sessionsForDB.length > 0) {
+        await StudyPlan.findOneAndUpdate(
+          { eventId: event._id },
+          {
+            userId: req.user.id,
+            eventId: event._id,
+            eventDate: event.date,
+            subject: event.subject,
+            category: event.category,
+            sessions: sessionsForDB,
+          },
+          { upsert: true, new: true }
+        );
       }
     }
 
@@ -164,12 +182,28 @@ export const updateEvent = async (req, res) => {
 
     // Ако е учебно събитие, обновяваме StudyPlan
     if (event.type === "study" && event.totalPages > 0) {
-      // Изтриваме стария план и създаваме нов
-      await StudyPlan.deleteMany({ eventId: event._id });
       const studyPlanData = await generateAdaptiveStudyPlan(event, req.user.id);
-      if (studyPlanData.sessions && studyPlanData.sessions.length > 0) {
-        await StudyPlan.create(studyPlanData);
-      }
+
+      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
+        start: s.start,
+        end: s.end,
+        pagesFrom: s.pagesFrom,
+        pagesTo: s.pagesTo,
+        note: s.note || "Updated study",
+      }));
+
+      await StudyPlan.findOneAndUpdate(
+        { eventId: event._id },
+        {
+          userId: req.user.id,
+          eventId: event._id,
+          eventDate: event.date,
+          subject: event.subject,
+          category: event.category,
+          sessions: sessionsForDB,
+        },
+        { upsert: true, new: true }
+      );
     }
 
     res.json({ message: "Event updated successfully", event });
