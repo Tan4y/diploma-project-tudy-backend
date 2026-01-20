@@ -167,7 +167,7 @@ export async function generateAdaptiveStudyPlan(event, userId) {
 
   // 1) компресирай период на планиране - от днес до ден преди eventDate (не в деня)
   const planningEnd = new Date(eventDate);
-  planningEnd.setDate(planningEnd.getDate()); // включително предния ден? тук включваме до eventDate - 1 час
+  planningEnd.setDate(planningEnd.getDate() - 1); // включително предния ден? тук включваме до eventDate - 1 час
   // ще позволим учене и в същия ден, но преди началото на събитието; оставяме това поведение, тъй като event може да е full-day
   const planningStart = new Date(now);
 
@@ -224,6 +224,8 @@ export async function generateAdaptiveStudyPlan(event, userId) {
   );
   const totalMinutes = durations.reduce((a, b) => a + b, 0);
 
+  let floatPages = durations.map((d) => (d / totalMinutes) * totalPages);
+
   // pages per minute heuristic (колко страници на минута - груба оценка)
   // тук използваме 0.5 страници/минута като базова стойност (можеш да коригираш)
   const pagesPerMinute = Math.max(
@@ -237,24 +239,45 @@ export async function generateAdaptiveStudyPlan(event, userId) {
   for (let i = 0; i < candidateSessions.length; i++) {
     const s = candidateSessions[i];
     const mins = durations[i];
-    // pages for this session proportionally
-    let pagesFloat = Math.round(mins * pagesPerMinute);
-    if (pagesFloat < 1) pagesFloat = 1;
-    // ensure we don't overflow
-    if (pageCursor + pagesFloat - 1 > totalPages) {
-      pagesFloat = totalPages - pageCursor + 1;
+    let pagesForSession = Math.round(floatPages[i]);
+    if (pagesForSession < 1) pagesForSession = 1;
+    if (pageCursor + pagesForSession - 1 > totalPages) {
+      pagesForSession = totalPages - pageCursor + 1;
     }
-    const pFrom = pageCursor;
-    const pTo = pageCursor + pagesFloat - 1;
+
     assigned.push({
-      start: s.start,
-      end: s.end,
-      pagesFrom: pFrom,
-      pagesTo: pTo,
+      start: candidateSessions[i].start,
+      end: candidateSessions[i].end,
+      pagesFrom: pageCursor,
+      pagesTo: pageCursor + pagesForSession - 1,
       note: "Initial study",
     });
-    pageCursor = pTo + 1;
+
+    pageCursor += pagesForSession;
+    // if (pageCursor > totalPages) break;
+
     if (pageCursor > totalPages) break;
+  }
+
+  // Merge tiny sessions if they are below minPagesPerSession
+  const minPagesPerSession = 5;
+
+  for (let i = 0; i < assigned.length; i++) {
+    const sessionPages = assigned[i].pagesTo - assigned[i].pagesFrom + 1;
+
+    if (sessionPages < minPagesPerSession) {
+      // Merge with the next session if it exists
+      if (i + 1 < assigned.length) {
+        // Extend the next session to start from this session's start
+        assigned[i + 1].pagesFrom = assigned[i].pagesFrom;
+
+        // Remove current tiny session
+        assigned.splice(i, 1);
+
+        // Stay on the same index to recheck the merged session
+        i--;
+      }
+    }
   }
 
   // Ако не сме разпределили всички страници (pageCursor <= totalPages) -> добавяме допълнителни сесии в най-ранните възможни слотове (drop-in)
@@ -283,35 +306,41 @@ export async function generateAdaptiveStudyPlan(event, userId) {
   // Примерни интервали (в дни): 2, 4, 7
   const reviewIntervals = [2, 4, 7];
   const reviews = [];
+  const usedSlots = new Set();
 
   // За всеки initial session създаваме опит за review сесиите за pagesFrom-pagesTo
   for (const s of assigned) {
     for (let ri = 0; ri < reviewIntervals.length; ri++) {
       const reviewDay = reviewIntervals[ri];
-      let desiredStart = addDays(s.start, reviewDay);
+      const desiredStart = addDays(s.start, reviewDay);
       // Търсим свободен слот на същия ден или най-близкия следващ
       // (тук просто намираме първия candidateSessions slot >= desiredStart)
-      const slot = candidateSessions.find((cs) => cs.start >= desiredStart);
+      let slot = candidateSessions.find(
+        (cs) => cs.start >= desiredStart && !usedSlots.has(cs)
+      );
+
+      if (!slot) {
+        // fallback: last available slot before eventDate
+        slot = candidateSessions
+          .slice()
+          .reverse()
+          .find((cs) => cs.start < eventDate && !usedSlots.has(cs));
+      }
+
       if (slot) {
         reviews.push({
           start: slot.start,
           end: slot.end,
           pagesFrom: s.pagesFrom,
           pagesTo: s.pagesTo,
-          note: `Review +${reviewDay}d`,
+          note:
+            slot.start >= desiredStart
+              ? `Review +${reviewDay}d`
+              : `Review (fallback +${reviewDay}d)`,
         });
-      } else {
-        // ако няма такъв слот, пробваме да сложим review преди event (на последния възможен ден)
-        const lastSlot = candidateSessions[candidateSessions.length - 1];
-        if (lastSlot && lastSlot.start < eventDate) {
-          reviews.push({
-            start: lastSlot.start,
-            end: lastSlot.end,
-            pagesFrom: s.pagesFrom,
-            pagesTo: s.pagesTo,
-            note: `Review (fallback +${reviewDay}d)`,
-          });
-        }
+
+        // mark slot as used
+        usedSlots.add(slot);
       }
     }
   }
@@ -330,6 +359,8 @@ export async function generateAdaptiveStudyPlan(event, userId) {
     eventId: event._id,
     userId,
     eventDate: event.date,
+    subject: event.subject || null,
+    category: event.category || null,
     sessions: resultSessions.map((s) => ({
       start: s.start,
       end: s.end,

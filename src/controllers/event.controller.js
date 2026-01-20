@@ -1,6 +1,7 @@
 import Event from "../models/Event.js";
 import StudyPlan from "../models/StudyPlan.js";
 import { generateAdaptiveStudyPlan } from "../services/studyScheduler.service.js";
+import TypeSubject from "../models/TypeSubject.js";
 
 // Създаване на събитие
 export const createEvent = async (req, res) => {
@@ -17,6 +18,22 @@ export const createEvent = async (req, res) => {
       pages,
     } = req.body;
     const userId = req.user.id; // от JWT middleware
+
+    const existingEvent = await Event.findOne({
+      user: userId,
+      title: title.trim(),
+      date: date,
+      type: type,
+      subject: type === "study" ? subject : undefined,
+      category: type === "study" ? category : undefined,
+    });
+
+    if (existingEvent) {
+      return res.status(400).json({
+        message: "Event with this title already exists on this date",
+        event: existingEvent,
+      });
+    }
 
     const event = new Event({
       title,
@@ -35,27 +52,29 @@ export const createEvent = async (req, res) => {
 
     // Ако събитието е учебно, генерираме автоматичен план
     if (type === "study" && pages > 0) {
-      let studyPlanData = await generateAdaptiveStudyPlan({
-        userId,
-        eventId: event._id,
-        pages,
-        eventDate: date,
-        userSettings: req.user.settings, // start/end time, preferences
-      });
+      const studyPlanData = await generateAdaptiveStudyPlan(event, userId);
 
-      // Make sure required fields exist
-      const safeStudyPlanData = {
-        userId,
-        eventId: event._id,
-        eventDate: date,
-        sessions: Array.isArray(studyPlanData.sessions)
-          ? studyPlanData.sessions
-          : [],
-      };
+      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
+        start: s.start,
+        end: s.end,
+        pagesFrom: s.pagesFrom,
+        pagesTo: s.pagesTo,
+        note: s.note || "Initial study",
+      }));
 
-      // Only create StudyPlan if sessions exist
-      if (safeStudyPlanData.sessions.length > 0) {
-        await StudyPlan.create(safeStudyPlanData);
+      if (sessionsForDB.length > 0) {
+        await StudyPlan.findOneAndUpdate(
+          { eventId: event._id },
+          {
+            userId: req.user.id,
+            eventId: event._id,
+            eventDate: event.date,
+            subject: event.subject,
+            category: event.category,
+            sessions: sessionsForDB,
+          },
+          { upsert: true, new: true }
+        );
       }
     }
 
@@ -70,6 +89,9 @@ export const createEvent = async (req, res) => {
 export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
+    const oldCategory = event.category;
+    const oldSubject = event.subject;
+    const oldType = event.type;
 
     if (!event) return res.status(404).json({ message: "Event not found" });
 
@@ -95,15 +117,93 @@ export const updateEvent = async (req, res) => {
     }
 
     await event.save();
+    if (oldType === "study" && event.type !== "study") {
+      // study → personal
+      if (oldCategory) {
+        await TypeSubject.findOneAndUpdate(
+          { userId: req.user.id, name: oldCategory, type: "type" },
+          { $inc: { tudies: -1 } }
+        );
+      }
+      if (oldSubject) {
+        await TypeSubject.findOneAndUpdate(
+          { userId: req.user.id, name: oldSubject, type: "subject" },
+          { $inc: { tudies: -1 } }
+        );
+      }
+    }
+
+    if (oldType !== "study" && event.type === "study") {
+      // personal → study
+      if (event.category) {
+        await TypeSubject.findOneAndUpdate(
+          { userId: req.user.id, name: event.category, type: "type" },
+          { $inc: { tudies: 1 } }
+        );
+      }
+      if (event.subject) {
+        await TypeSubject.findOneAndUpdate(
+          { userId: req.user.id, name: event.subject, type: "subject" },
+          { $inc: { tudies: 1 } }
+        );
+      }
+    }
+
+    // study updated & changed category/subject
+    if (oldType === "study" && event.type === "study") {
+      if (oldCategory !== event.category) {
+        if (oldCategory)
+          await TypeSubject.findOneAndUpdate(
+            { userId: req.user.id, name: oldCategory, type: "type" },
+            { $inc: { tudies: -1 } }
+          );
+
+        if (event.category)
+          await TypeSubject.findOneAndUpdate(
+            { userId: req.user.id, name: event.category, type: "type" },
+            { $inc: { tudies: 1 } }
+          );
+      }
+
+      if (oldSubject !== event.subject) {
+        if (oldSubject)
+          await TypeSubject.findOneAndUpdate(
+            { userId: req.user.id, name: oldSubject, type: "subject" },
+            { $inc: { tudies: -1 } }
+          );
+
+        if (event.subject)
+          await TypeSubject.findOneAndUpdate(
+            { userId: req.user.id, name: event.subject, type: "subject" },
+            { $inc: { tudies: 1 } }
+          );
+      }
+    }
 
     // Ако е учебно събитие, обновяваме StudyPlan
     if (event.type === "study" && event.totalPages > 0) {
-      // Изтриваме стария план и създаваме нов
-      await StudyPlan.deleteMany({ eventId: event._id });
       const studyPlanData = await generateAdaptiveStudyPlan(event, req.user.id);
-      if (studyPlanData.sessions && studyPlanData.sessions.length > 0) {
-        await StudyPlan.create(studyPlanData);
-      }
+
+      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
+        start: s.start,
+        end: s.end,
+        pagesFrom: s.pagesFrom,
+        pagesTo: s.pagesTo,
+        note: s.note || "Updated study",
+      }));
+
+      await StudyPlan.findOneAndUpdate(
+        { eventId: event._id },
+        {
+          userId: req.user.id,
+          eventId: event._id,
+          eventDate: event.date,
+          subject: event.subject,
+          category: event.category,
+          sessions: sessionsForDB,
+        },
+        { upsert: true, new: true }
+      );
     }
 
     res.json({ message: "Event updated successfully", event });
@@ -140,6 +240,20 @@ export const deleteEvent = async (req, res) => {
 
     // Ако е учебно, изтриваме свързания план
     if (event.type === "study") {
+      if (event.category) {
+        await TypeSubject.findOneAndUpdate(
+          { userId, name: event.category, type: "type" },
+          { $inc: { tudies: -1 } }
+        );
+      }
+
+      if (event.subject) {
+        await TypeSubject.findOneAndUpdate(
+          { userId, name: event.subject, type: "subject" },
+          { $inc: { tudies: -1 } }
+        );
+      }
+
       await StudyPlan.deleteMany({ eventId: event._id });
     }
 

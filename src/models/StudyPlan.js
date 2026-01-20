@@ -14,9 +14,12 @@ const StudyPlanSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Event",
     required: true,
+    unique: true,
   },
   eventDate: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
+  subject: { type: String },
+  category: { type: String },
   sessions: { type: [StudySessionSchema], required: true },
 });
 
