@@ -13,6 +13,7 @@ import sessionRoutes from "./routes/session.routes.js";
 import typeSubjectRoutes from "./routes/typeSubject.routes.js";
 import cookieParser from "cookie-parser";
 import calendarRoutes from "./routes/calendar.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 connectDB();
@@ -32,6 +33,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api/users", userRoutes);
 app.use("/api/users", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
