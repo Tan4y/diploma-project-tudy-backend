@@ -3,6 +3,12 @@ import StudyPlan from "../models/StudyPlan.js";
 import { generateAdaptiveStudyPlan } from "../services/studyScheduler.service.js";
 import TypeSubject from "../models/TypeSubject.js";
 
+const timeToMinutes = (isoTime) => {
+  const date = new Date(isoTime);
+  if (isNaN(date)) throw new Error("Invalid time");
+  return date.getHours() * 60 + date.getMinutes();
+};
+
 // Създаване на събитие
 export const createEvent = async (req, res) => {
   try {
@@ -48,6 +54,29 @@ export const createEvent = async (req, res) => {
       user: userId,
     });
 
+    // Fetch all events of the user on the same date
+    const eventsOnDate = await Event.find({
+      user: userId,
+      date: date,
+    });
+
+    // Check if any overlap
+    const newStart = timeToMinutes(startTime);
+    const newEnd = timeToMinutes(endTime);
+
+    const hasOverlap = eventsOnDate.some((e) => {
+      const existingStart = timeToMinutes(e.startTime);
+      const existingEnd = timeToMinutes(e.endTime);
+      // Overlap occurs if newStart < existingEnd && newEnd > existingStart
+      return newStart < existingEnd && newEnd > existingStart;
+    });
+
+    if (hasOverlap) {
+      return res.status(400).json({
+        message: "Event overlaps with an existing event",
+      });
+    }
+
     await event.save();
 
     // Ако събитието е учебно, генерираме автоматичен план
@@ -73,7 +102,7 @@ export const createEvent = async (req, res) => {
             category: event.category,
             sessions: sessionsForDB,
           },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
       }
     }
@@ -116,19 +145,40 @@ export const updateEvent = async (req, res) => {
       event.subject = undefined;
     }
 
+    const eventsOnDate = await Event.find({
+      user: req.user.id,
+      date: req.body.date || event.date,
+      _id: { $ne: event._id }, // exclude the event itself
+    });
+
+    const newStart = timeToMinutes(req.body.startTime || event.startTime);
+    const newEnd = timeToMinutes(req.body.endTime || event.endTime);
+
+    const hasOverlap = eventsOnDate.some((e) => {
+      const existingStart = timeToMinutes(e.startTime);
+      const existingEnd = timeToMinutes(e.endTime);
+      return newStart < existingEnd && newEnd > existingStart;
+    });
+
+    if (hasOverlap) {
+      return res.status(400).json({
+        message: "Updated event overlaps with an existing event",
+      });
+    }
+
     await event.save();
     if (oldType === "study" && event.type !== "study") {
       // study → personal
       if (oldCategory) {
         await TypeSubject.findOneAndUpdate(
           { userId: req.user.id, name: oldCategory, type: "type" },
-          { $inc: { tudies: -1 } }
+          { $inc: { tudies: -1 } },
         );
       }
       if (oldSubject) {
         await TypeSubject.findOneAndUpdate(
           { userId: req.user.id, name: oldSubject, type: "subject" },
-          { $inc: { tudies: -1 } }
+          { $inc: { tudies: -1 } },
         );
       }
     }
@@ -138,13 +188,13 @@ export const updateEvent = async (req, res) => {
       if (event.category) {
         await TypeSubject.findOneAndUpdate(
           { userId: req.user.id, name: event.category, type: "type" },
-          { $inc: { tudies: 1 } }
+          { $inc: { tudies: 1 } },
         );
       }
       if (event.subject) {
         await TypeSubject.findOneAndUpdate(
           { userId: req.user.id, name: event.subject, type: "subject" },
-          { $inc: { tudies: 1 } }
+          { $inc: { tudies: 1 } },
         );
       }
     }
@@ -155,13 +205,13 @@ export const updateEvent = async (req, res) => {
         if (oldCategory)
           await TypeSubject.findOneAndUpdate(
             { userId: req.user.id, name: oldCategory, type: "type" },
-            { $inc: { tudies: -1 } }
+            { $inc: { tudies: -1 } },
           );
 
         if (event.category)
           await TypeSubject.findOneAndUpdate(
             { userId: req.user.id, name: event.category, type: "type" },
-            { $inc: { tudies: 1 } }
+            { $inc: { tudies: 1 } },
           );
       }
 
@@ -169,13 +219,13 @@ export const updateEvent = async (req, res) => {
         if (oldSubject)
           await TypeSubject.findOneAndUpdate(
             { userId: req.user.id, name: oldSubject, type: "subject" },
-            { $inc: { tudies: -1 } }
+            { $inc: { tudies: -1 } },
           );
 
         if (event.subject)
           await TypeSubject.findOneAndUpdate(
             { userId: req.user.id, name: event.subject, type: "subject" },
-            { $inc: { tudies: 1 } }
+            { $inc: { tudies: 1 } },
           );
       }
     }
@@ -202,7 +252,7 @@ export const updateEvent = async (req, res) => {
           category: event.category,
           sessions: sessionsForDB,
         },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
     }
 
@@ -243,14 +293,14 @@ export const deleteEvent = async (req, res) => {
       if (event.category) {
         await TypeSubject.findOneAndUpdate(
           { userId, name: event.category, type: "type" },
-          { $inc: { tudies: -1 } }
+          { $inc: { tudies: -1 } },
         );
       }
 
       if (event.subject) {
         await TypeSubject.findOneAndUpdate(
           { userId, name: event.subject, type: "subject" },
-          { $inc: { tudies: -1 } }
+          { $inc: { tudies: -1 } },
         );
       }
 
