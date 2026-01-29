@@ -69,8 +69,6 @@ export const resetPassword = async (req, res) => {
 export const verifyResetToken = async (req, res) => {
   const { token } = req.query;
 
-  console.log("verifyResetToken called with token:", token);
-
   try {
     const user = await User.findOne({
       resetToken: token,
@@ -78,7 +76,6 @@ export const verifyResetToken = async (req, res) => {
     });
 
     if (!user) {
-      console.log("Token is invalid or expired");
       return res
         .status(400)
         .sendFile(path.join(process.cwd(), "templates", "invalid-token.html"));
@@ -87,7 +84,7 @@ export const verifyResetToken = async (req, res) => {
     const templatePath = path.join(
       process.cwd(),
       "templates",
-      "reset-password.html"
+      "reset-password.html",
     );
     let html = fs.readFileSync(templatePath, "utf8");
 

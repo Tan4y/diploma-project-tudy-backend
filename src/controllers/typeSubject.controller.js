@@ -2,7 +2,6 @@ import TypeSubject from "../models/TypeSubject.js";
 import { getUpcomingTudiesCount } from "../utils/tudyHelpers.js";
 import { getUpcomingTudiesCountByCategory } from "../utils/tudyHelpers.js";
 
-// Default types and subjects
 const defaultItems = [
   { name: "Assignment", iconName: "type_homework", type: "type" },
   { name: "Exam", iconName: "type_exam", type: "type" },
@@ -22,7 +21,6 @@ const defaultItems = [
   { name: "Sport", iconName: "subject_sport", type: "subject" },
 ];
 
-// Function to create defaults for a new user
 export const createDefaultItemsForUser = async (userId) => {
   const itemsToInsert = defaultItems.map((item) => ({
     ...item,
@@ -31,7 +29,6 @@ export const createDefaultItemsForUser = async (userId) => {
   await TypeSubject.insertMany(itemsToInsert);
 };
 
-// GET all types/subjects for a user
 export const getTypeSubjects = async (req, res) => {
   try {
     const { type } = req.query;
@@ -51,19 +48,19 @@ export const getTypeSubjects = async (req, res) => {
         if (item.type === "subject") {
           upcomingCount = await getUpcomingTudiesCount(
             req.params.userId,
-            item.name
+            item.name,
           );
         } else if (item.type === "type") {
           upcomingCount = await getUpcomingTudiesCountByCategory(
             req.params.userId,
-            item.name
+            item.name,
           );
         }
         return {
           ...item.toObject(),
           tudies: upcomingCount,
         };
-      })
+      }),
     );
 
     res.json(itemsWithCounts);
@@ -72,7 +69,6 @@ export const getTypeSubjects = async (req, res) => {
   }
 };
 
-// POST add new type or subject
 export const addTypeSubject = async (req, res) => {
   try {
     const { name, iconName, userId, type } = req.body;
@@ -125,7 +121,7 @@ export const deleteTypeSubject = async (req, res) => {
     } else if (item.type === "type") {
       const upcomingCount = await getUpcomingTudiesCountByCategory(
         userId,
-        item.name
+        item.name,
       );
       if (upcomingCount > 0) {
         return res.status(400).json({
