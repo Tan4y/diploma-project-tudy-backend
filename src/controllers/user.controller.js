@@ -3,7 +3,7 @@ import User from "../models/User.js";
 export const addRealStudyTime = async (req, res) => {
   try {
     const { minutes, date } = req.body;
-    const userId = req.user.id; // from JWT middleware
+    const userId = req.user.id;
 
     if (!minutes || minutes <= 0 || !date) {
       return res.status(400).json({ message: "Invalid data" });
@@ -34,14 +34,13 @@ export const getUserStudyStats = async (req, res) => {
     const userId = req.user.id;
 
     const user = await User.findById(userId).select(
-      "realStudyLogs totalRealStudyMinutes"
+      "realStudyLogs totalRealStudyMinutes",
     );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Group minutes per day
     const studyMinutesPerDay = {};
 
     user.realStudyLogs.forEach((log) => {

@@ -6,15 +6,15 @@ export const getCalendarItems = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // ✅ Only get StudyPlans (which have sessions)
+    // Only get StudyPlans (which have sessions)
     const studyPlans = await StudyPlan.find({ userId }).populate(
       "eventId",
-      "title subject category"
+      "title subject category",
     );
 
     const calendarItems = [];
 
-    // ✅ Only iterate through studyPlans and their sessions
+    // Only iterate through studyPlans and their sessions
     studyPlans.forEach((plan) => {
       const eventTitle = plan.eventId?.title ?? "Study Session";
 
@@ -34,7 +34,7 @@ export const getCalendarItems = async (req, res) => {
             category: plan.category,
             pagesFrom: s.pagesFrom,
             pagesTo: s.pagesTo,
-          })
+          }),
         );
       });
     });

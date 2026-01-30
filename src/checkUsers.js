@@ -9,9 +9,7 @@ dotenv.config();
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
-    console.log("Connected to DB");
     const users = await User.find();
-    console.log(users);
     process.exit();
   })
   .catch((err) => console.error(err));

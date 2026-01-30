@@ -33,7 +33,7 @@ export const register = async (req, res) => {
     const tempToken = jwt.sign(
       { username, email, password: hashedPassword },
       process.env.TEMP_JWT_SECRET,
-      { expiresIn: process.env.TEMP_TOKEN_EXPIRES_IN }
+      { expiresIn: process.env.TEMP_TOKEN_EXPIRES_IN },
     );
 
     // Send verification email
@@ -46,8 +46,6 @@ export const register = async (req, res) => {
     });
 
     const verificationLink = `${process.env.CLIENT_URL}/api/auth/verify-email?token=${tempToken}`;
-
-    console.log("Verification link:", verificationLink);
 
     try {
       await transporter.sendMail({
@@ -103,7 +101,7 @@ export const login = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user._id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN },
     );
 
     const refreshToken = jwt.sign(
@@ -111,10 +109,10 @@ export const login = async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET,
       {
         expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
-      }
+      },
     );
 
-    // Успешен вход
+    // Successful log in
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -147,9 +145,7 @@ export const deleteUser = async (req, res) => {
 };
 
 export const refreshToken = (req, res) => {
-  // Try to get token from body first (for mobile clients), then from cookies (for web clients)
-  let token =
-    req.body?.token || req.body?.refreshToken || req.cookies?.refreshToken;
+  let token = req.body?.token || req.body?.refreshToken;
 
   if (!token) {
     return res.status(401).json({ message: "No refresh token provided" });
@@ -161,13 +157,13 @@ export const refreshToken = (req, res) => {
     const newAccessToken = jwt.sign(
       { id: decoded.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN },
     );
 
     const newRefreshToken = jwt.sign(
       { id: decoded.id },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN }
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
     );
 
     res.cookie("refreshToken", newRefreshToken, {
@@ -279,7 +275,6 @@ export const updateUsername = async (req, res) => {
     return res.status(400).json({ message: "Missing userId or newUsername" });
   }
 
-  // Validate username using the existing regex
   const usernameError = (() => {
     const usernameRegex = /^[a-zA-Z0-9_]+$/;
     if (!newUsername || newUsername.trim() === "")
@@ -304,7 +299,7 @@ export const updateUsername = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { username: newUsername },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedUser) {

@@ -10,7 +10,7 @@ import { generateAdaptiveStudyPlan } from "../services/studyScheduler.service.js
 export const createStudyPlanForEvent = async (req, res) => {
   try {
     const { eventId } = req.body;
-    const userId = req.user && req.user.id; // предполага се auth middleware
+    const userId = req.user && req.user.id;
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: "Event not found" });
@@ -89,7 +89,7 @@ export const getAllStudyPlans = async (req, res) => {
               subject:
                 typeof event.subject === "string"
                   ? event.subject
-                  : event.subject?.name ?? null,
+                  : (event.subject?.name ?? null),
               type: event.type,
               date: event.date?.toISOString(),
             }

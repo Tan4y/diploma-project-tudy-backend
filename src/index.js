@@ -11,7 +11,6 @@ import resetRoutes from "./routes/reset.routes.js";
 import studyRoutes from "./routes/study.routes.js";
 import sessionRoutes from "./routes/session.routes.js";
 import typeSubjectRoutes from "./routes/typeSubject.routes.js";
-import cookieParser from "cookie-parser";
 import calendarRoutes from "./routes/calendar.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
@@ -25,10 +24,9 @@ app.use(
   cors({
     origin: process.env.CLIENT_URL,
     credentials: true,
-  })
+  }),
 );
 
-app.use(cookieParser());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
