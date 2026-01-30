@@ -201,7 +201,7 @@ export const verifyEmail = async (req, res) => {
 
     await createDefaultItemsForUser(newUser._id);
 
-    return res.redirect("/auth-pages/email-verified.html");
+    return res.redirect("/auth-pages/success-screen.html?type=email");
   } catch (err) {
     console.error(err);
 
