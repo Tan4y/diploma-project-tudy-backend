@@ -3,11 +3,87 @@ import StudyPlan from "../models/StudyPlan.js";
 import { generateAdaptiveStudyPlan } from "../services/studyScheduler.service.js";
 import TypeSubject from "../models/TypeSubject.js";
 
-const timeToMinutes = (isoTime) => {
-  const date = new Date(isoTime);
-  if (isNaN(date)) throw new Error("Invalid time");
-  return date.getHours() * 60 + date.getMinutes();
+const timeToMinutes = (time) => {
+  if (!time) throw new Error("Time is missing");
+
+  if (time instanceof Date) {
+    return time.getUTCHours() * 60 + time.getUTCMinutes();
+  }
+
+  if (typeof time === "string") {
+    if (time.includes("T")) {
+      const date = new Date(time);
+      if (isNaN(date)) throw new Error("Invalid ISO time");
+      return date.getUTCHours() * 60 + date.getUTCMinutes();
+    }
+
+    const [hours, minutes] = time.split(":").map(Number);
+    if (
+      Number.isNaN(hours) ||
+      Number.isNaN(minutes) ||
+      hours < 0 ||
+      hours > 23 ||
+      minutes < 0 ||
+      minutes > 59
+    )
+      throw new Error("Invalid time format");
+
+    return hours * 60 + minutes;
+  }
+
+  throw new Error("Unsupported time type");
 };
+
+function parseISODate(isoString) {
+  if (!isoString) return null;
+  if (isoString instanceof Date) return new Date(isoString);
+
+  const date = new Date(isoString);
+
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date format: ${isoString}`);
+  }
+
+  return date;
+}
+
+async function regenerateAllStudyPlans(userId) {
+  try {
+    const studyEvents = await Event.find({
+      user: userId,
+      type: "study",
+    });
+
+    for (const studyEvent of studyEvents) {
+      const studyPlanData = await generateAdaptiveStudyPlan(studyEvent, userId);
+
+      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
+        start: s.start,
+        end: s.end,
+        pagesFrom: s.pagesFrom,
+        pagesTo: s.pagesTo,
+        note: s.note || "Rescheduled",
+      }));
+
+      if (sessionsForDB.length > 0) {
+        await StudyPlan.findOneAndUpdate(
+          { eventId: studyEvent._id },
+          {
+            userId: userId,
+            eventId: studyEvent._id,
+            eventDate: studyEvent.date,
+            subject: studyEvent.subject,
+            category: studyEvent.category,
+            sessions: sessionsForDB,
+          },
+          { upsert: true, new: true },
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error regenerating study plans:", error);
+  }
+}
 
 // Създаване на събитие
 export const createEvent = async (req, res) => {
@@ -23,12 +99,24 @@ export const createEvent = async (req, res) => {
       subject,
       pages,
     } = req.body;
-    const userId = req.user.id; // от JWT middleware
+    const userId = req.user.id;
+
+    let parsedDate, parsedStartTime, parsedEndTime;
+    try {
+      parsedDate = parseISODate(date);
+      parsedStartTime = parseISODate(startTime);
+      parsedEndTime = parseISODate(endTime);
+    } catch (e) {
+      console.error("Date parsing error:", e.message);
+      return res
+        .status(400)
+        .json({ message: "Invalid date format", error: e.message });
+    }
 
     const existingEvent = await Event.findOne({
       user: userId,
       title: title.trim(),
-      date: date,
+      date: parsedDate,
       type: type,
       subject: type === "study" ? subject : undefined,
       category: type === "study" ? category : undefined,
@@ -44,30 +132,27 @@ export const createEvent = async (req, res) => {
     const event = new Event({
       title,
       description,
-      date,
-      startTime,
-      endTime,
-      type, // "study" или "personal"
+      date: parsedDate,
+      startTime: parsedStartTime,
+      endTime: parsedEndTime,
+      type,
       category: type === "study" ? category : undefined,
       subject: type === "study" ? subject : undefined,
-      totalPages: pages, // само за учебни събития
+      totalPages: pages,
       user: userId,
     });
 
-    // Fetch all events of the user on the same date
     const eventsOnDate = await Event.find({
       user: userId,
-      date: date,
+      date: parsedDate,
     });
 
-    // Check if any overlap
-    const newStart = timeToMinutes(startTime);
-    const newEnd = timeToMinutes(endTime);
+    const newStart = timeToMinutes(parsedStartTime);
+    const newEnd = timeToMinutes(parsedEndTime);
 
     const hasOverlap = eventsOnDate.some((e) => {
       const existingStart = timeToMinutes(e.startTime);
       const existingEnd = timeToMinutes(e.endTime);
-      // Overlap occurs if newStart < existingEnd && newEnd > existingStart
       return newStart < existingEnd && newEnd > existingStart;
     });
 
@@ -79,33 +164,7 @@ export const createEvent = async (req, res) => {
 
     await event.save();
 
-    // Ако събитието е учебно, генерираме автоматичен план
-    if (type === "study" && pages > 0) {
-      const studyPlanData = await generateAdaptiveStudyPlan(event, userId);
-
-      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
-        start: s.start,
-        end: s.end,
-        pagesFrom: s.pagesFrom,
-        pagesTo: s.pagesTo,
-        note: s.note || "Initial study",
-      }));
-
-      if (sessionsForDB.length > 0) {
-        await StudyPlan.findOneAndUpdate(
-          { eventId: event._id },
-          {
-            userId: req.user.id,
-            eventId: event._id,
-            eventDate: event.date,
-            subject: event.subject,
-            category: event.category,
-            sessions: sessionsForDB,
-          },
-          { upsert: true, new: true },
-        );
-      }
-    }
+    await regenerateAllStudyPlans(userId);
 
     res.status(201).json({ message: "Event created successfully", event });
   } catch (error) {
@@ -114,28 +173,42 @@ export const createEvent = async (req, res) => {
   }
 };
 
-// Промяна на събитието
 export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     const oldCategory = event.category;
     const oldSubject = event.subject;
     const oldType = event.type;
+    const oldDate = new Date(event.date);
+    const oldStartTime = event.startTime;
+    const oldEndTime = event.endTime;
 
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    // Проверка за собственост
     if (event.user.toString() !== req.user.id)
       return res.status(403).json({ message: "Unauthorized" });
 
-    // Обновяване на полетата
+    let parsedDate = event.date;
+    let parsedStartTime = event.startTime;
+    let parsedEndTime = event.endTime;
+
+    if (req.body.date) {
+      parsedDate = parseISODate(req.body.date);
+    }
+    if (req.body.startTime) {
+      parsedStartTime = parseISODate(req.body.startTime);
+    }
+    if (req.body.endTime) {
+      parsedEndTime = parseISODate(req.body.endTime);
+    }
+
     event.title = req.body.title || event.title;
     event.description = req.body.description ?? event.description;
-    event.date = req.body.date || event.date;
+    event.date = parsedDate;
     event.type = req.body.type || event.type;
     event.totalPages = req.body.pages ?? event.totalPages;
-    event.startTime = req.body.startTime || event.startTime;
-    event.endTime = req.body.endTime || event.endTime;
+    event.startTime = parsedStartTime;
+    event.endTime = parsedEndTime;
 
     if (event.type === "study") {
       event.category = req.body.category || event.category;
@@ -147,12 +220,12 @@ export const updateEvent = async (req, res) => {
 
     const eventsOnDate = await Event.find({
       user: req.user.id,
-      date: req.body.date || event.date,
-      _id: { $ne: event._id }, // exclude the event itself
+      date: parsedDate,
+      _id: { $ne: event._id },
     });
 
-    const newStart = timeToMinutes(req.body.startTime || event.startTime);
-    const newEnd = timeToMinutes(req.body.endTime || event.endTime);
+    const newStart = timeToMinutes(parsedStartTime);
+    const newEnd = timeToMinutes(parsedEndTime);
 
     const hasOverlap = eventsOnDate.some((e) => {
       const existingStart = timeToMinutes(e.startTime);
@@ -167,8 +240,8 @@ export const updateEvent = async (req, res) => {
     }
 
     await event.save();
+
     if (oldType === "study" && event.type !== "study") {
-      // study → personal
       if (oldCategory) {
         await TypeSubject.findOneAndUpdate(
           { userId: req.user.id, name: oldCategory, type: "type" },
@@ -184,7 +257,6 @@ export const updateEvent = async (req, res) => {
     }
 
     if (oldType !== "study" && event.type === "study") {
-      // personal → study
       if (event.category) {
         await TypeSubject.findOneAndUpdate(
           { userId: req.user.id, name: event.category, type: "type" },
@@ -199,7 +271,6 @@ export const updateEvent = async (req, res) => {
       }
     }
 
-    // study updated & changed category/subject
     if (oldType === "study" && event.type === "study") {
       if (oldCategory !== event.category) {
         if (oldCategory)
@@ -230,40 +301,21 @@ export const updateEvent = async (req, res) => {
       }
     }
 
-    // Ако е учебно събитие, обновяваме StudyPlan
-    if (event.type === "study" && event.totalPages > 0) {
-      const studyPlanData = await generateAdaptiveStudyPlan(event, req.user.id);
-
-      const sessionsForDB = (studyPlanData.sessions || []).map((s) => ({
-        start: s.start,
-        end: s.end,
-        pagesFrom: s.pagesFrom,
-        pagesTo: s.pagesTo,
-        note: s.note || "Updated study",
-      }));
-
-      await StudyPlan.findOneAndUpdate(
-        { eventId: event._id },
-        {
-          userId: req.user.id,
-          eventId: event._id,
-          eventDate: event.date,
-          subject: event.subject,
-          category: event.category,
-          sessions: sessionsForDB,
-        },
-        { upsert: true, new: true },
-      );
+    if (
+      oldDate.getTime() !== event.date.getTime() ||
+      oldStartTime.toString() !== event.startTime.toString() ||
+      oldEndTime.toString() !== event.endTime.toString()
+    ) {
+      await regenerateAllStudyPlans(req.user.id);
     }
 
     res.json({ message: "Event updated successfully", event });
   } catch (error) {
     console.error("UPDATE EVENT ERROR:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// Вземане на всички събития на потребителя
 export const getEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -275,7 +327,6 @@ export const getEvents = async (req, res) => {
   }
 };
 
-// Изтриване на събитие
 export const deleteEvent = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -288,7 +339,6 @@ export const deleteEvent = async (req, res) => {
 
     await event.deleteOne();
 
-    // Ако е учебно, изтриваме свързания план
     if (event.type === "study") {
       if (event.category) {
         await TypeSubject.findOneAndUpdate(
@@ -306,6 +356,8 @@ export const deleteEvent = async (req, res) => {
 
       await StudyPlan.deleteMany({ eventId: event._id });
     }
+
+    await regenerateAllStudyPlans(userId);
 
     res.json({ message: "Event deleted successfully" });
   } catch (error) {
