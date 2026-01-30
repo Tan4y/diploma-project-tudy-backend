@@ -201,9 +201,7 @@ export const verifyEmail = async (req, res) => {
 
     await createDefaultItemsForUser(newUser._id);
 
-    return res.status(200).json({
-      message: "Email verified successfully. You can now log in.",
-    });
+    return res.redirect("/auth-pages/success-screen.html?type=email");
   } catch (err) {
     console.error(err);
 

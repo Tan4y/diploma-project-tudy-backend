@@ -169,33 +169,4 @@ router.get("/profile", verifyToken, (req, res) => {
   res.json({ message: `Welcome, ${req.user.username}!`, user: req.user });
 });
 
-router.get("/:id", getUserById);
-
-/**
- * @swagger
- * /api/auth/users:
- *   delete:
- *     summary: Delete a user by ID
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The user ID
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       403:
- *         description: Forbidden
- *       404:
- *         description: User not found
- *       401:
- *         description: Unauthorized
- */
-router.delete("/:id", deleteUser);
-
 export default router;
