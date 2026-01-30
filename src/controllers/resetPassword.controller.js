@@ -59,7 +59,7 @@ export const resetPassword = async (req, res) => {
     user.resetTokenExpiry = undefined;
     await user.save();
 
-    res.json({ message: "Password successfully updated" });
+    return res.redirect("/auth-pages/reset-success.html");
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

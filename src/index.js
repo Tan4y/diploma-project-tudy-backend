@@ -13,6 +13,8 @@ import sessionRoutes from "./routes/session.routes.js";
 import typeSubjectRoutes from "./routes/typeSubject.routes.js";
 import calendarRoutes from "./routes/calendar.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 connectDB();
@@ -27,15 +29,21 @@ app.use(
   }),
 );
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api/users", userRoutes);
-app.use("/api/users", authRoutes);
+app.use("/auth-pages", express.static(path.join(__dirname, "../templates")));
+
 app.use("/api/auth", authRoutes);
-app.use("/api/events", eventRoutes);
 app.use("/api/auth", resetRoutes);
+
+app.use("/api/users", userRoutes);
+//app.use("/api/users", authRoutes);
+app.use("/api/events", eventRoutes);
 app.use("/api/study", studyRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/type-subject", typeSubjectRoutes);
