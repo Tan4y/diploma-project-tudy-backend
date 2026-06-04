@@ -6,7 +6,7 @@ const TypeSubjectSchema = new mongoose.Schema({
   iconName: { type: String, required: true },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "TypeSubjects",
+    ref: "User",
     required: true,
   },
   type: { type: String, enum: ["type", "subject"], required: true },

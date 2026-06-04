@@ -42,7 +42,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/auth", resetRoutes);
 
 app.use("/api/users", userRoutes);
-//app.use("/api/users", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/study", studyRoutes);
 app.use("/api/sessions", sessionRoutes);
