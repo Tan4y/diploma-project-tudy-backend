@@ -166,13 +166,6 @@ export const refreshToken = (req, res) => {
       { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
     );
 
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
     res.json({
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
