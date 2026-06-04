@@ -2,13 +2,16 @@ import express from "express";
 import {
   register,
   login,
+  getUserById,
   refreshToken,
+  updateUsername,
 } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { verifyEmail } from "../controllers/auth.controller.js";
 import { getAllUsers } from "../controllers/auth.controller.js";
 import { deleteUser } from "../controllers/auth.controller.js";
+import { logout } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -18,6 +21,10 @@ const loginLimiter = rateLimit({
   max: 5, // max 5 attempts per window
   message: "Too many login attempts, please try again later.",
 });
+
+router.post("/logout", logout);
+
+router.patch("/update-username", updateUsername);
 
 /**
  * @swagger
@@ -153,33 +160,6 @@ router.post("/login", loginLimiter, login);
  *         description: Unauthorized
  */
 router.get("/users", getAllUsers);
-
-/**
- * @swagger
- * /api/auth/users:
- *   delete:
- *     summary: Delete a user by ID
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The user ID
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       403:
- *         description: Forbidden
- *       404:
- *         description: User not found
- *       401:
- *         description: Unauthorized
- */
-router.delete("/users", deleteUser);
 
 // New refrsh route
 router.post("/refresh", refreshToken);

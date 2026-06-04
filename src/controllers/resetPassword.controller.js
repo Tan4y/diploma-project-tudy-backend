@@ -2,6 +2,8 @@ import User from "../models/User.js";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import bcrypt from "bcrypt";
+import fs from "fs";
+import path from "path";
 
 export const requestPasswordReset = async (req, res) => {
   const { username } = req.body;
@@ -24,7 +26,7 @@ export const requestPasswordReset = async (req, res) => {
       },
     });
 
-    const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+    const resetLink = `http://10.0.2.2:5050/api/auth/reset-password?token=${token}`;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -57,9 +59,40 @@ export const resetPassword = async (req, res) => {
     user.resetTokenExpiry = undefined;
     await user.save();
 
-    res.json({ message: "Password successfully updated" });
+    return res.redirect("/auth-pages/success-screen.html?type=password");
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const verifyResetToken = async (req, res) => {
+  const { token } = req.query;
+
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .sendFile(path.join(process.cwd(), "templates", "invalid-token.html"));
+    }
+
+    const templatePath = path.join(
+      process.cwd(),
+      "templates",
+      "reset-password.html",
+    );
+    let html = fs.readFileSync(templatePath, "utf8");
+
+    html = html.replace("{{TOKEN}}", token);
+
+    res.send(html);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("Server error");
   }
 };

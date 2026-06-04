@@ -7,6 +7,7 @@ import {
   validateRegisterData,
   validateLoginData,
 } from "../validators/authValidator.js";
+import { createDefaultItemsForUser } from "./typeSubject.controller.js";
 
 export const register = async (req, res) => {
   try {
@@ -32,7 +33,7 @@ export const register = async (req, res) => {
     const tempToken = jwt.sign(
       { username, email, password: hashedPassword },
       process.env.TEMP_JWT_SECRET,
-      { expiresIn: TEMP_TOKEN_EXPIRES_IN }
+      { expiresIn: process.env.TEMP_TOKEN_EXPIRES_IN },
     );
 
     // Send verification email
@@ -44,9 +45,7 @@ export const register = async (req, res) => {
       },
     });
 
-    const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${tempToken}`;
-
-    console.log("Verification link:", verificationLink);
+    const verificationLink = `${process.env.CLIENT_URL}/api/auth/verify-email?token=${tempToken}`;
 
     try {
       await transporter.sendMail({
@@ -102,7 +101,7 @@ export const login = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user._id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN },
     );
 
     const refreshToken = jwt.sign(
@@ -110,10 +109,18 @@ export const login = async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET,
       {
         expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
-      }
+      },
     );
 
-    // Успешен вход
+    // Successful log in
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth/refresh",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.status(200).json({
       message: "Login successful",
       accessToken,
@@ -126,35 +133,43 @@ export const login = async (req, res) => {
   }
 };
 export const deleteUser = async (req, res) => {
-  try {
-    const { id } = req.query;
+  const { id } = req.params;
 
-    if (!id) return res.status(400).json({ message: "User ID is required" });
+  if (!id) return res.status(400).json({ message: "User ID is required" });
 
-    const user = await User.findById(id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-    await User.findByIdAndDelete(id);
-    res.status(200).json({ message: "User deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  await User.findByIdAndDelete(id);
+  res.status(200).json({ message: "User deleted successfully" });
 };
 
 export const refreshToken = (req, res) => {
-  const { token } = req.body;
-  if (!token)
+  let token = req.body?.token || req.body?.refreshToken;
+
+  if (!token) {
     return res.status(401).json({ message: "No refresh token provided" });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
     const newAccessToken = jwt.sign(
       { id: decoded.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN },
     );
-    res.json({ accessToken: newAccessToken });
+
+    const newRefreshToken = jwt.sign(
+      { id: decoded.id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
+    );
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
   } catch (error) {
     res.status(403).json({ message: "Invalid or expired refresh token" });
   }
@@ -177,18 +192,26 @@ export const verifyEmail = async (req, res) => {
 
     await newUser.save();
 
-    if (process.env.NODE_ENV !== "production") {
-      // Return JSON for Swagger / testing
-      return res.json({
-        message: "Email verified successfully. You can now log in.",
-      });
-    }
+    await createDefaultItemsForUser(newUser._id);
 
-    // Redirect to login page or send JSON
-    res.redirect(`${process.env.CLIENT_URL}/login?verified=true`);
-    // OR: res.json({ message: "Email verified successfully. You can now log in." });
+    return res.redirect("/auth-pages/success-screen.html?type=email");
   } catch (err) {
     console.error(err);
+
+    if (err.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid verification link" });
+    }
+
+    if (err.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Verification link has expired" });
+    }
+
+    if (err.code === 11000) {
+      return res
+        .status(400)
+        .json({ message: "This account has already been verified" });
+    }
+
     res.status(400).json({ message: "Invalid or expired verification link" });
   }
 };
@@ -197,6 +220,86 @@ export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, "-password"); // exclude passwords
     res.status(200).json({ users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /api/users/:id
+export const getUserById = async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) return res.status(400).json({ message: "User ID is required" });
+
+  try {
+    const user = await User.findById(id, "-password"); // exclude password
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const logout = (req, res) => {
+  try {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth/refresh",
+    });
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateUsername = async (req, res) => {
+  const { userId, newUsername } = req.query;
+
+  if (!userId || !newUsername) {
+    return res.status(400).json({ message: "Missing userId or newUsername" });
+  }
+
+  const usernameError = (() => {
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!newUsername || newUsername.trim() === "")
+      return "Username is required";
+    if (!usernameRegex.test(newUsername))
+      return "Username can only contain letters, numbers, and underscores";
+    return null;
+  })();
+
+  if (usernameError) return res.status(400).json({ message: usernameError });
+
+  try {
+    const existing = await User.findOne({
+      username: newUsername,
+      _id: { $ne: userId },
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { username: newUsername },
+      { new: true },
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Username updated", username: updatedUser.username });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
